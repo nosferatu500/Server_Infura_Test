@@ -7,6 +7,7 @@ import (
 	"strings"
 	"io/ioutil"
 	"encoding/json"
+	"strconv"
 )
 
 // token=dUQe3kE7aGgdnkBmEAny
@@ -38,6 +39,11 @@ func (p *Routes)ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if r.URL.Path == "/blockNumber" {
+		getBlockNumber(w, r)
+		return
+	}
+
 	http.NotFound(w, r)
 	return
 }
@@ -55,24 +61,36 @@ func sayhelloName2(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello astaxie2!") // send data to client side
 }
 
-func main() {
-	resp, err := http.Get("https://api.infura.io/v1/jsonrpc/mainnet/eth_blockNumber?token=dUQe3kE7aGgdnkBmEAny")
+func getBlockNumber(w http.ResponseWriter, r *http.Request) {
+	resp, _ := http.Get(`https://api.infura.io/v1/jsonrpc/mainnet/eth_blockNumber?token=dUQe3kE7aGgdnkBmEAny`)
 
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, _ := ioutil.ReadAll(resp.Body)
 
 
 	fmt.Println(resp.Body)
 	fmt.Println(body)
 
-	var r = new(Response)
-	err = json.Unmarshal(body, &r)
+	var res = new(Response)
+	_ = json.Unmarshal(body, &res)
 
-	fmt.Println(r.Result)
+	data := &Response{}
 
+	hex := strings.TrimPrefix(res.Result, "0x")
+	x, _ := strconv.ParseInt(hex, 16, 64)
+	s := strconv.Itoa(int(x))
+
+	data.Result = s
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(data)
+	//fmt.Fprintf(w, res.Result)
+}
+
+func main() {
 
 	router := &Routes{} // set router
-	err = http.ListenAndServe(":9090", router) // set listen port
+	err := http.ListenAndServe(":9090", router) // set listen port
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
